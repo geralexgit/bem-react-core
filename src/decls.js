@@ -9,31 +9,37 @@ export default function bemReactCore(BaseComponent, overrideFields={}, overrideS
         let entityCls = entity.cls;
 
         if(entity.decls) {
-            entity.decls.forEach(({ fields, staticFields }) => {
-                const base = entityCls?
-                        entityCls :
-                        entity.base? entity.base : Base,
-                    extendableFields = {
-                        propTypes : {},
-                        defaultProps : {},
-                        contextTypes : {},
-                        childContextTypes : {}
-                    };
+            entity.decls.forEach(decl => {
+                if(Array.isArray(decl)) {
+                    // TODO
+                } else {
+                    const { fields, staticFields } = decl,
+                        base = entityCls?
+                            entityCls :
+                            entity.base || Base,
+                        extendableFields = {
+                            propTypes : {},
+                            defaultProps : {},
+                            contextTypes : {},
+                            childContextTypes : {}
+                        };
 
-                [].concat(base, staticFields).forEach(cls => extendFields(cls, extendableFields));
+                    [].concat(base, staticFields).forEach(cls => extendFields(cls, extendableFields));
 
-                staticFields = { ...staticFields, ...extendableFields };
+                    staticFields = { ...staticFields, ...extendableFields };
 
-                entityCls?
-                    inherit.self(base, fields, staticFields) :
-                    entityCls = entity.cls = inherit(
-                        base,
-                        fields,
-                        {
-                            displayName : Base.displayName(fields.block, fields.elem),
-                            ...staticFields
-                        }
-                    );
+                    entityCls?
+                        inherit.self(base, fields, staticFields) :
+                        entityCls = entity.cls = inherit(
+                            base,
+                            fields,
+                            {
+                                displayName : Base.displayName(fields.block, fields.elem),
+                                ...staticFields
+                            }
+                        );
+                }
+
             });
 
             entity.decls = null;
@@ -112,15 +118,21 @@ export default function bemReactCore(BaseComponent, overrideFields={}, overrideS
             const key = Base.displayName(fields.block, fields.elem),
                 entity = getEntity(key);
 
+            var entityDecls = entity.decls || (entity.decls = []);
+
             if(base) {
                 if(entity.base) throw new Error(
                     `BEM entity "${key}" has multiple ancestors`
                 );
                 entity.base = base;
+
+                (Array.isArray(base) || [base]).forEach(b => {
+                    entityDecls.push(...b.decls);
+                    entityDecls.push(b.modDecls || (b.modDecls = []));
+                });
             }
 
-            entity.decls = entity.decls || [];
-            entity.decls.push({ fields, staticFields });
+            entityDecls.push({ fields, staticFields });
 
             wrapper && (entity.declWrappers || (entity.declWrappers = [])).push(wrapper);
 
@@ -134,7 +146,7 @@ export default function bemReactCore(BaseComponent, overrideFields={}, overrideS
 
             const entity = getEntity(Base.displayName(fields.block, fields.elem));
 
-            entity.modDecls = entity.modDecls || [];
+            entity.modDecls || (entity.modDecls = []);
             entity.modDecls.push({ predicate, fields, staticFields });
 
             return entity;
